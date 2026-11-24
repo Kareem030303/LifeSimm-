@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lifeline Chronicles — Life Simulator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #162033;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #f472b6;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.45;
+    }
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1, h2, h3 { margin: 0; }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+    }
+    .life-layout {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .life-layout { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.95rem;
+    }
+    button {
+      background: var(--accent);
+      color: #062033;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+    button:hover { filter: brightness(1.08); }
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.pink {
+      background: var(--accent-2);
+      color: #260718;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .stat-box {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .stat-val { font-size: 1.25rem; font-weight: 800; }
+    .choice-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 11px 13px;
+      border-radius: 9px;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+    .choice-btn:hover { border-color: var(--accent); }
+    .rel-item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px;
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent);
+    }
+    .pill.gf {
+      background: rgba(244, 114, 182, 0.18);
+      color: var(--accent-2);
+    }
+    .log {
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .log-entry {
+      padding: 8px 10px;
+      border-left: 3px solid var(--accent);
+      background: var(--panel-2);
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .log-entry.mil { border-left-color: var(--good); }
+    .log-entry.rom { border-left-color: var(--accent-2); }
+    .log-entry.death { border-left-color: var(--warn); }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>Lifeline Chronicles</h1>
+      <div class="muted">Any era, any birth year, full family tree, romance &amp; natural life arcs (typically ages 70–90)</div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="btnSave">Save Life</button>
+      <button class="secondary" id="btnLoad">Load Life</button>
+      <button class="secondary" id="btnNewSetup">New Character</button>
+    </div>
+  </header>
+
+  <!-- SETUP SCREEN -->
+  <section id="setupScreen">
+    <div class="card">
+      <h2>Birth &amp; Era Setup</h2>
+      <p class="muted">Choose when, where, and who you are born to. Try any year—from Medieval times to the modern day or far future.</p>
+      <div class="grid-3">
+        <div>
+          <label for="inpName">Full Name</label>
+          <input id="inpName" value="Alex Mercer" />
+        </div>
+        <div>
+          <label for="selGender">Gender</label>
+          <select id="selGender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Non-binary">Non-binary</option>
+          </select>
+        </div>
+        <div>
+          <label for="inpYear">Birth Year (any year, e.g. 1245, 1998, 2026)</label>
+          <input id="inpYear" type="number" value="2002" />
+        </div>
+        <div>
+          <label for="selMonth">Birth Month</label>
+          <select id="selMonth">
+            <option>January</option><option>February</option><option>March</option>
+            <option>April</option><option>May</option><option>June</option>
+            <option>July</option><option>August</option><option>September</option>
+            <option>October</option><option>November</option><option>December</option>
+          </select>
+        </div>
+        <div>
+          <label for="inpDay">Birth Day</label>
+          <input id="inpDay" type="number" min="1" max="28" value="14" />
+        </div>
+        <div>
+          <label for="inpCountry">Country / Realm</label>
+          <input id="inpCountry" value="United States" />
+        </div>
+        <div>
+          <label for="inpState">State / Province / Region</label>
+          <input id="inpState" value="Pennsylvania" />
+        </div>
+        <div>
+          <label for="inpCity">City / Town / Village</label>
+          <input id="inpCity" value="Allentown" />
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button class="secondary" id="btnPresetMed">Preset: Medieval (1280)</button>
+        <button class="secondary" id="btnPreset1900">Preset: Turn of Century (1902)</button>
+        <button class="secondary" id="btnPresetMod">Preset: Modern (2004)</button>
+        <button class="secondary" id="btnPresetSciFi">Preset: Orbital Era (2290)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2>Family Tree on Arrival</h2>
+          <div class="muted">Parents, siblings, grandparents, aunts, uncles, and cousins</div>
+        </div>
+        <button class="secondary" id="btnRegenFamily">Regenerate Family</button>
+      </div>
+      <div id="familyPreview" class="grid-2" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="row" style="justify-content: flex-end;">
+      <button id="btnStartLife" style="padding: 12px 22px; font-size: 1rem;">Begin Life</button>
+    </div>
+  </section>
+
+  <!-- ACTIVE LIFE SCREEN -->
+  <section id="lifeScreen" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h2 id="charTitle"></h2>
+          <div id="charMeta" class="muted"></div>
+        </div>
+        <div class="row">
+          <button id="btnAgeUp">Advance 1 Year</button>
+          <button class="pink" id="btnDateAction">Date / Meet Someone</button>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top: 14px;">
+        <div class="stat-box"><div class="muted">Age &amp; Year</div><div class="stat-val" id="stAge"></div></div>
+        <div class="stat-box"><div class="muted">Health</div><div class="stat-val" id="stHealth"></div></div>
+        <div class="stat-box"><div class="muted">Happiness</div><div class="stat-val" id="stHappy"></div></div>
+        <div class="stat-box"><div class="muted">Wealth</div><div class="stat-val" id="stWealth"></div></div>
+        <div class="stat-box"><div class="muted">Reputation</div><div class="stat-val" id="stRep"></div></div>
+        <div class="stat-box"><div class="muted">Career / Role</div><div class="stat-val" id="stRole" style="font-size: 1rem;"></div></div>
+      </div>
+    </div>
+
+    <div class="life-layout">
+      <div>
+        <div class="card" id="eventCard">
+          <h3 id="evtTitle">Year Event</h3>
+          <p id="evtDesc" class="muted" style="margin-top: 6px;"></p>
+          <div id="evtChoices"></div>
+        </div>
+
+        <div class="card">
+          <h3>Life Timeline</h3>
+          <div id="lifeLog" class="log" style="margin-top: 10px;"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Girlfriends &amp; Romance</h3>
+          <div id="gfList" class="muted" style="margin-top: 6px;">No girlfriends yet—use "Date / Meet Someone" once you're old enough!</div>
+        </div>
+
+        <div class="card">
+          <h3>Family Circle</h3>
+          <div id="famList" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const FIRST_F = ["Maya", "Clara", "Elena", "Sora", "Nadia", "Hannah", "freya", "Tessa", "Leah", "Zoe", "Isolde", "Amina"].map(s => s[0].toUpperCase() + s.slice(1));
+  const FIRST_M = ["Liam", "Noah", "Julian", "Mateo", "Rowan", "Caleb", "Henrik", "Tariq", "Owen", "Gareth", "Soren", "Devon"];
+  const LAST_NAMES = ["Mercer", "Vance", "Kowalski", "Lindqvist", "Patel", "Alvarez", "Thorne", "okafor", "Chen", "Morrison", "Castellano", "Bauer"].map(s => s[0].toUpperCase() + s.slice(1));
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  let draftFamily = [];
+  let state = null;
+
+  function eraForYear(y) {
+    if (y < 500) return "Ancient Era";
+    if (y < 1500) return "Medieval Era";
+    if (y < 1760) return "Early Modern / Renaissance";
+    if (y < 1900) return "Industrial Era";
+    if (y < 2050) return "Modern Era";
+    return "Future / Orbital Era";
+  }
+
+  function defaultRole(age, year) {
+    const era = eraForYear(year);
+    if (age < 6) return "Toddler";
+    if (age < 13) return era.includes("Medieval") ? "Apprentice / Child" : "School Student";
+    if (age < 18) return era.includes("Medieval") ? "Young Apprentice" : "High School Student";
+    if (era.includes("Medieval")) return pick(["Blacksmith", "Scribe", "Herbalist", "Merchant", "Ranger"]);
+    if (era.includes("Industrial")) return pick(["Machinist", "Telegraph Clerk", "Reporter", "Rail Worker", "Drafter"]);
+    if (era.includes("Future")) return pick(["Habitat Engineer", "Bio-Archivist", "Pilot", "Synth Designer", "Astrophysicist"]);
+    return pick(["Software Developer", "Nurse", "Graphic Designer", "Chef", "Environmental Analyst"]);
+  }
+
+  function generateFamily() {
+    const surname = (document.getElementById("inpName").value.trim().split(/\s+/).pop()) || pick(LAST_NAMES);
+    const fam = [
+      { id: crypto.randomUUID(), name: `${pick(FIRST_F)} ${surname}`, relation: "Mother", bond: randInt(65, 92), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_M)} ${surname}`, relation: "Father", bond: randInt(60, 90), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_F)} ${pick(LAST_NAMES)}`, relation: "Maternal Grandmother", bond: randInt(60, 90), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_M)} ${pick(LAST_NAMES)}`, relation: "Paternal Grandfather", bond: randInt(55, 88), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_F)} ${surname}`, relation: "Sister", bond: randInt(50, 88), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_M)} ${surname}`, relation: "Brother", bond: randInt(50, 88), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_F)} ${pick(LAST_NAMES)}`, relation: "Aunt", bond: randInt(45, 80), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_M)} ${pick(LAST_NAMES)}`, relation: "Uncle", bond: randInt(45, 80), alive: true },
+      { id: crypto.randomUUID(), name: `${pick(FIRST_M)} ${pick(LAST_NAMES)}`, relation: "Cousin", bond: randInt(50, 85), alive: true }
+    ];
+    draftFamily = fam;
+    renderFamilyPreview();
+  }
+
+  function renderFamilyPreview() {
+    const box = document.getElementById("familyPreview");
+    box.innerHTML = draftFamily.map(m => `
+      <div class="stat-box">
+        <strong>${m.name}</strong>
+        <div class="muted">${m.relation} • Starting bond ${m.bond}/100</div>
+      </div>
+    `).join("");
+  }
+
+  function addLog(text, kind = "") {
+    state.log.unshift({ year: state.year, age: state.age, text, kind });
+  }
+
+  function startLife() {
+    const name = document.getElementById("inpName").value.trim() || "Alex Mercer";
+    const gender = document.getElementById("selGender").value;
+    const birthYear = parseInt(document.getElementById("inpYear").value, 10) || 2002;
+    const month = document.getElementById("selMonth").value;
+    const day = clamp(parseInt(document.getElementById("inpDay").value, 10) || 1, 1, 28);
+    const country = document.getElementById("inpCountry").value.trim() || "United States";
+    const region = document.getElementById("inpState").value.trim() || "Pennsylvania";
+    const city = document.getElementById("inpCity").value.trim() || "Allentown";
+
+    // Natural lifespan target usually lands between 70 and 90
+    const targetLifespan = randInt(70, 90);
+
+    state = {
+      name,
+      gender,
+      birthYear,
+      birthDate: `${month} ${day}, ${birthYear}`,
+      country,
+      region,
+      city,
+      era: eraForYear(birthYear),
+      age: 0,
+      year: birthYear,
+      targetLifespan,
+      alive: true,
+      role: "Infant",
+      stats: { health: 85, happiness: 78, wealth: 25, reputation: 50 },
+      girlfriends: [],
+      family: JSON.parse(JSON.stringify(draftFamily)),
+      log: [],
+      currentEvent: null
+    };
+
+    addLog(`Born on ${state.birthDate} in ${state.city}, ${state.region}, ${state.country} (${state.era}).`, "mil");
+    generateYearlyEvent();
+    showLifeScreen();
+  }
+
+  function generateYearlyEvent() {
+    if (!state.alive) {
+      state.currentEvent = {
+        title: `Passed Away at Age ${state.age} (${state.year})`,
+        desc: `After a full life across the ${state.era}, ${state.name} passed peacefully. You can start a new life anytime.`,
+        choices: [
+          { label: "Start Another Life", apply: () => { showSetupScreen(); } }
+        ]
+      };
+      return;
+    }
+
+    const era = eraForYear(state.year);
+    const age = state.age;
+
+    if (age < 12) {
+      state.currentEvent = {
+        title: `Growing Up in ${state.city} (${era})`,
+        desc: `At age ${age}, daily life revolves around family, play, and learning the ways of the ${era.toLowerCase()}.`,
+        choices: [
+          {
+            label: "Spend extra time with family & siblings (+Happiness, +Family Bond)",
+            apply: () => {
+              state.stats.happiness = clamp(state.stats.happiness + 7, 0, 100);
+              state.family.forEach(f => { if (f.alive) f.bond = clamp(f.bond + 5, 0, 100); });
+              addLog(`Shared memorable moments with family in ${state.city}.`, "mil");
+            }
+          },
+          {
+            label: "Explore outdoors & stay active (+Health, +Reputation)",
+            apply: () => {
+              state.stats.health = clamp(state.stats.health + 6, 0, 100);
+              state.stats.reputation = clamp(state.stats.reputation + 4, 0, 100);
+              addLog(`Spent the year exploring and building stamina.`);
+            }
+          }
+        ]
+      };
+      return;
+    }
+
+    const activeGf = state.girlfriends.find(g => g.status === "Girlfriend");
+    if (activeGf && Math.random() < 0.35) {
+      state.currentEvent = {
+        title: `Romance with ${activeGf.name}`,
+        desc: `You and ${activeGf.name} have been spending time together in ${state.city}. How do you nurture the relationship this year?`,
+        choices: [
+          {
+            label: `Plan a thoughtful outing with ${activeGf.name} (+Affection, +Happiness)`,
+            apply: () => {
+              activeGf.affection = clamp(activeGf.affection + randInt(8, 15), 0, 100);
+              state.stats.happiness = clamp(state.stats.happiness + 7, 0, 100);
+              addLog(`Had a great year together with girlfriend ${activeGf.name}.`, "rom");
+            }
+          },
+          {
+            label: "Focus heavily on work/craft this year (-Affection, +Wealth)",
+            apply: () => {
+              activeGf.affection = clamp(activeGf.affection - randInt(5, 10), 0, 100);
+              state.stats.wealth = clamp(state.stats.wealth + 8, 0, 100);
+              addLog(`Put extra hours into work while dating ${activeGf.name}.`, "rom");
+            }
+          }
+        ]
+      };
+      return;
+    }
+
+    const scenarios = [
+      {
+        title: `A Turning Point in ${state.year}`,
+        desc: `An opportunity opens up in ${state.city} suited to the ${era.toLowerCase()}.`,
+        choices: [
+          {
+            label: "Take on an ambitious project (+Wealth, +Reputation, -Happiness)",
+            apply: () => {
+              state.stats.wealth = clamp(state.stats.wealth + 10, 0, 100);
+              state.stats.reputation = clamp(state.stats.reputation + 7, 0, 100);
+              state.stats.happiness = clamp(state.stats.happiness - 4, 0, 100);
+              addLog(`Took on an ambitious role as ${state.role} and gained wealth & reputation.`);
+            }
+          },
+          {
+            label: "Prioritize balance, friends, and wellness (+Health, +Happiness)",
+            apply: () => {
+              state.stats.health = clamp(state.stats.health + 6, 0, 100);
+              state.stats.happiness = clamp(state.stats.happiness + 8, 0, 100);
+              addLog(`Kept a steady pace and focused on health and well-being.`);
+            }
+          }
+        ]
+      },
+      {
+        title: "Community & Reputation",
+        desc: "Neighbors and peers in your area look to how you handle local events this year.",
+        choices: [
+          {
+            label: "Step up and help others (+Reputation, +Happiness)",
+            apply: () => {
+              state.stats.reputation = clamp(state.stats.reputation + 9, 0, 100);
+              state.stats.happiness = clamp(state.stats.happiness + 5, 0, 100);
+              addLog(`Stepped up locally and earned strong goodwill.`);
+            }
+          },
+          {
+            label: "Invest wisely and save resources (+Wealth)",
+            apply: () => {
+              state.stats.wealth = clamp(state.stats.wealth + 9, 0, 100);
+              addLog(`Focused on saving and building financial security.`);
+            }
+          }
+        ]
+      }
+    ];
+
+    state.currentEvent = pick(scenarios);
+  }
+
+  function advanceYear() {
+    if (!state.alive) return;
+    state.age += 1;
+    state.year += 1;
+    state.role = defaultRole(state.age, state.year);
+
+    // Gradual aging health drift so lifespans naturally cluster around 70-90
+    if (state.age > 55) {
+      const decline = (state.age - 65) > 0 ? randInt(1, 5) : randInt(0, 2);
+      state.stats.health = clamp(state.stats.health - decline, 0, 100);
+    }
+
+    // Occasional elder family passing
+    state.family.forEach(m => {
+      if (m.alive && (m.relation.includes("Grand") || (m.relation === "Mother" || m.relation === "Father" || m.relation === "Aunt" || m.relation === "Uncle") && state.age > 45)) {
+        if (Math.random() < 0.045) {
+          m.alive = false;
+          state.stats.happiness = clamp(state.stats.happiness - 10, 0, 100);
+          addLog(`${m.name} (${m.relation}) passed away.`, "death");
+        }
+      }
+    });
+
+    // Check natural passing around targetLifespan (70-90) or severe health drop
+    const pastTarget = state.age >= state.targetLifespan;
+    const chanceToPass = pastTarget
+      ? 0.45 + (state.age - state.targetLifespan) * 0.18
+      : (state.stats.health <= 5 ? 0.35 : 0.004);
+
+    if (Math.random() < chanceToPass || state.age >= 98) {
+      state.alive = false;
+      addLog(`Passed away naturally at age ${state.age} in ${state.year}.`, "death");
+    }
+
+    generateYearlyEvent();
+    renderLife();
+  }
+
+  function dateOrMeet() {
+    if (!state.alive) return;
+    if (state.age < 15) {
+      addLog(`Tried to start dating at age ${state.age}, but you're still too young—try again at 15+.`, "rom");
+      renderLife();
+      return;
+    }
+
+    const active = state.girlfriends.find(g => g.status === "Girlfriend");
+    if (active) {
+      active.affection = clamp(active.affection + randInt(6, 12), 0, 100);
+      state.stats.happiness = clamp(state.stats.happiness + 5, 0, 100);
+      addLog(`Went on a special date with your girlfriend ${active.name} (Affection: ${active.affection}/100).`, "rom");
+      renderLife();
+      return;
+    }
+
+    const candidateName = `${pick(FIRST_F)} ${pick(LAST_NAMES)}`;
+    const accepted = (state.stats.happiness + state.stats.reputation) / 2 + randInt(-20, 25) >= 45;
+    if (accepted) {
+      state.girlfriends.push({
+        id: crypto.randomUUID(),
+        name: candidateName,
+        metYear: state.year,
+        affection: randInt(58, 76),
+        status: "Girlfriend"
+      });
+      state.stats.happiness = clamp(state.stats.happiness + 10, 0, 100);
+      addLog(`Started dating ${candidateName} and became girlfriends/partners!`, "rom");
+    } else {
+      addLog(`Asked ${candidateName} out, but the timing wasn't quite right this year.`, "rom");
+    }
+    renderLife();
+  }
+
+  function renderLife() {
+    document.getElementById("charTitle").textContent = `${state.name} (${state.gender})`;
+    document.getElementById("charMeta").textContent =
+      `Born ${state.birthDate} • ${state.city}, ${state.region}, ${state.country} • ${state.era}`;
+
+    document.getElementById("stAge").textContent = `Age ${state.age} (${state.year})`;
+    document.getElementById("stHealth").textContent = `${state.stats.health}/100`;
+    document.getElementById("stHappy").textContent = `${state.stats.happiness}/100`;
+    document.getElementById("stWealth").textContent = `${state.stats.wealth}/100`;
+    document.getElementById("stRep").textContent = `${state.stats.reputation}/100`;
+    document.getElementById("stRole").textContent = state.alive ? state.role : "Deceased";
+
+    document.getElementById("btnAgeUp").disabled = !state.alive;
+    document.getElementById("btnDateAction").disabled = !state.alive;
+
+    // Event card
+    const evt = state.currentEvent;
+    document.getElementById("evtTitle").textContent = evt.title;
+    document.getElementById("evtDesc").textContent = evt.desc;
+    const choicesEl = document.getElementById("evtChoices");
+    choicesEl.innerHTML = "";
+    evt.choices.forEach(c => {
+      const b = document.createElement("button");
+      b.className = "choice-btn";
+      b.textContent = c.label;
+      b.onclick = () => {
+        c.apply();
+        if (state.alive) advanceYear();
+        else renderLife();
+      };
+      choicesEl.appendChild(b);
+    });
+
+    // Girlfriends
+    const gfEl = document.getElementById("gfList");
+    if (!state.girlfriends.length) {
+      gfEl.innerHTML = `<div class="muted">No girlfriends yet. Click "Date / Meet Someone" (age 15+).</div>`;
+    } else {
+      gfEl.innerHTML = state.girlfriends.map(g => `
+        <div class="rel-item">
+          <div>
+            <strong>${g.name}</strong> <span class="pill gf">${g.status}</span>
+            <div class="muted">Since ${g.metYear} • Affection ${g.affection}/100</div>
+          </div>
+          ${g.status === "Girlfriend" ? `<button class="secondary" onclick="window.__breakup('${g.id}')">End</button>` : ""}
+        </div>
+      `).join("");
+    }
+
+    // Family
+    const famEl = document.getElementById("famList");
+    famEl.innerHTML = state.family.map(f => `
+      <div class="rel-item">
+        <div>
+          <strong>${f.name}</strong> <span class="pill">${f.relation}</span>
+          <div class="muted">${f.alive ? `Bond ${f.bond}/100` : "Passed away"}</div>
+        </div>
+        ${f.alive ? `<button class="secondary" onclick="window.__visitFam('${f.id}')">Visit</button>` : ""}
+      </div>
+    `).join("");
+
+    // Log
+    const logEl = document.getElementById("lifeLog");
+    logEl.innerHTML = state.log.map(entry => `
+      <div class="log-entry ${entry.kind}">
+        <div class="muted">Age ${entry.age} • Year ${entry.year}</div>
+        <div>${entry.text}</div>
+      </div>
+    `).join("");
+  }
+
+  window.__visitFam = (id) => {
+    const f = state.family.find(x => x.id === id);
+    if (!f || !f.alive || !state.alive) return;
+    f.bond = clamp(f.bond + 8, 0, 100);
+    state.stats.happiness = clamp(state.stats.happiness + 3, 0, 100);
+    addLog(`Visited ${f.name} (${f.relation})—bond now ${f.bond}/100.`);
+    renderLife();
+  };
+
+  window.__breakup = (id) => {
+    const g = state.girlfriends.find(x => x.id === id);
+    if (!g) return;
+    g.status = "Ex-Girlfriend";
+    state.stats.happiness = clamp(state.stats.happiness - 6, 0, 100);
+    addLog(`Parted ways with ${g.name}.`, "rom");
+    renderLife();
+  };
+
+  function showSetupScreen() {
+    document.getElementById("setupScreen").classList.remove("hidden");
+    document.getElementById("lifeScreen").classList.add("hidden");
+  }
+
+  function showLifeScreen() {
+    document.getElementById("setupScreen").classList.add("hidden");
+    document.getElementById("lifeScreen").classList.remove("hidden");
+    renderLife();
+  }
+
+  document.getElementById("btnRegenFamily").onclick = generateFamily;
+  document.getElementById("inpName").addEventListener("change", generateFamily);
+  document.getElementById("btnStartLife").onclick = startLife;
+  document.getElementById("btnAgeUp").onclick = advanceYear;
+  document.getElementById("btnDateAction").onclick = dateOrMeet;
+  document.getElementById("btnNewSetup").onclick = showSetupScreen;
+
+  document.getElementById("btnPresetMed").onclick = () => {
+    document.getElementById("inpYear").value = 1280;
+    document.getElementById("inpCountry").value = "Kingdom of England";
+    document.getElementById("inpState").value = "Yorkshire";
+    document.getElementById("inpCity").value = "Oakhaven";
+  };
+  document.getElementById("btnPreset1900").onclick = () => {
+    document.getElementById("inpYear").value = 1902;
+    document.getElementById("inpCountry").value = "United States";
+    document.getElementById("inpState").value = "New York";
+    document.getElementById("inpCity").value = "Brooklyn";
+  };
+  document.getElementById("btnPresetMod").onclick = () => {
+    document.getElementById("inpYear").value = 2004;
+    document.getElementById("inpCountry").value = "United States";
+    document.getElementById("inpState").value = "Pennsylvania";
+    document.getElementById("inpCity").value = "Allentown";
+  };
+  document.getElementById("btnPresetSciFi").onclick = () => {
+    document.getElementById("inpYear").value = 2290;
+    document.getElementById("inpCountry").value = "Sol Accord";
+    document.getElementById("inpState").value = "Lunar Rim";
+    document.getElementById("inpCity").value = "New Selene";
+  };
+
+  document.getElementById("btnSave").onclick = () => {
+    if (!state) return;
+    localStorage.setItem("lifeline_chronicles_save", JSON.stringify(state));
+    alert("Life saved in browser storage!");
+  };
+  document.getElementById("btnLoad").onclick = () => {
+    const raw = localStorage.getItem("lifeline_chronicles_save");
+    if (!raw) return alert("No saved life found yet.");
+    state = JSON.parse(raw);
+    generateYearlyEvent();
+    showLifeScreen();
+  };
+
+  generateFamily();
+})();
+</script>
+</body>
+</html>
