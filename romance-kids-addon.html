@@ -1,0 +1,249 @@
+(() => {
+  const CHILD_NAMES = [
+    "Leo", "Mia", "Aria", "Ezra", "Chloe", "Theo",
+    "Ruby", "Miles", "Nova", "Arthur", "Hazel", "Finn"
+  ];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  function ensureKidsUi() {
+    const lifeScreen = document.getElementById("lifeScreen");
+    if (!lifeScreen) return;
+
+    // 1. Add a "Romance" button without replacing existing buttons
+    if (!document.getElementById("btnRomanceMenu")) {
+      const dateBtn = document.getElementById("btnDateAction");
+      const parentRow = dateBtn ? dateBtn.parentElement : null;
+      if (parentRow) {
+        const romBtn = document.createElement("button");
+        romBtn.id = "btnRomanceMenu";
+        romBtn.className = "pink";
+        romBtn.textContent = "Romance";
+        romBtn.onclick = handleRomanceClick;
+        parentRow.appendChild(romBtn);
+      }
+    }
+
+    // 2. Add a "Children" card in the right sidebar if not already present
+    if (!document.getElementById("kidsCard")) {
+      const gfList = document.getElementById("gfList");
+      const sidebar = gfList ? gfList.closest(".card")?.parentElement : null;
+      if (sidebar) {
+        const card = document.createElement("div");
+        card.id = "kidsCard";
+        card.className = "card";
+        card.innerHTML = `
+          <h3>Children</h3>
+          <div id="kidsList" class="muted" style="margin-top: 8px;">No children yet.</div>
+        `;
+        sidebar.prepend(card);
+      }
+    }
+  }
+
+  function getActivePartner() {
+    if (!window.state || !Array.isArray(window.state.girlfriends)) return null;
+    return window.state.girlfriends.find((g) => g.status === "Girlfriend") || null;
+  }
+
+  function handleRomanceClick() {
+    const state = window.state;
+    if (!state || !state.alive) return;
+
+    if (state.age < 15) {
+      alert("You need to be at least 15 for romance.");
+      return;
+    }
+
+    const partner = getActivePartner();
+    if (!partner) {
+      const dateBtn = document.getElementById("btnDateAction");
+      if (dateBtn) dateBtn.click();
+      renderKids();
+      return;
+    }
+
+    // If you already have a girlfriend/partner (age 18+), offer to have kids or go on a romantic date
+    if (state.age >= 18) {
+      const wantKid = confirm(
+        `Romance with ${partner.name} (Affection: ${partner.affection}/100)\n\nClick OK to try to HAVE A KID together, or Cancel to just go on a romantic date.`
+      );
+      if (wantKid) {
+        tryHaveKid(partner);
+        return;
+      }
+    }
+
+    partner.affection = clamp(partner.affection + 10, 0, 100);
+    state.stats.happiness = clamp(state.stats.happiness + 6, 0, 100);
+    state.log.unshift({
+      year: state.year,
+      age: state.age,
+      text: `Had a romantic moment with ${partner.name} (Affection: ${partner.affection}/100).`,
+      kind: "rom"
+    });
+    rerenderSafe();
+  }
+
+  function tryHaveKid(partner) {
+    const state = window.state;
+    if (!Array.isArray(state.children)) state.children = [];
+
+    if (partner.affection < 45 && state.stats.happiness < 40) {
+      state.log.unshift({
+        year: state.year,
+        age: state.age,
+        text: `Talked with ${partner.name} about starting a family, but you decided to wait a little longer.`,
+        kind: "rom"
+      });
+      rerenderSafe();
+      return;
+    }
+
+    const surname = (state.name || "Mercer").trim().split(/\s+/).pop();
+    const firstName = pick(CHILD_NAMES);
+    const child = {
+      id: "kid_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      name: `${firstName} ${surname}`,
+      bornYear: state.year,
+      age: 0,
+      bond: clamp(Math.round((partner.affection + state.stats.happiness) / 2), 65, 98),
+      otherParent: partner.name
+    };
+
+    state.children.push(child);
+    partner.affection = clamp(partner.affection + 8, 0, 100);
+    state.stats.happiness = clamp(state.stats.happiness + 12, 0, 100);
+    state.log.unshift({
+      year: state.year,
+      age: state.age,
+      text: `Welcomed a child, ${child.name}, with ${partner.name}!`,
+      kind: "mil"
+    });
+    rerenderSafe();
+  }
+
+  function syncKidsAges() {
+    const state = window.state;
+    if (!state || !Array.isArray(state.children)) return;
+    state.children.forEach((kid) => {
+      kid.age = Math.max(0, state.year - kid.bornYear);
+    });
+  }
+
+  function renderKids() {
+    ensureKidsUi();
+    const kidsEl = document.getElementById("kidsList");
+    const state = window.state;
+    if (!kidsEl || !state) return;
+
+    syncKidsAges();
+    const kids = state.children || [];
+    if (!kids.length) {
+      kidsEl.innerHTML = `<div class="muted">No children yet. Press Romance when you have a girlfriend (age 18+) to have kids.</div>`;
+      return;
+    }
+
+    kidsEl.innerHTML = kids
+      .map(
+        (k) => `
+      <div class="rel-item">
+        <div>
+          <strong>${k.name}</strong> <span class="pill">Age ${k.age}</span>
+          <div class="muted">With ${k.otherParent} • Bond ${k.bond}/100</div>
+        </div>
+        <button class="secondary" onclick="window.__visitKid('${k.id}')">Spend Time</button>
+      </div>
+    `
+      )
+      .join("");
+  }
+
+  window.__visitKid = (id) => {
+    const state = window.state;
+    if (!state || !Array.isArray(state.children) || !state.alive) return;
+    const kid = state.children.find((c) => c.id === id);
+    if (!kid) return;
+    kid.bond = clamp(kid.bond + 8, 0, 100);
+    state.stats.happiness = clamp(state.stats.happiness + 4, 0, 100);
+    state.log.unshift({
+      year: state.year,
+      age: state.age,
+      text: `Spent quality time with your child ${kid.name} (Bond: ${kid.bond}/100).`,
+      kind: "mil"
+    });
+    rerenderSafe();
+  };
+
+  function rerenderSafe() {
+    renderKids();
+    // Refresh log/stats if present
+    const logEl = document.getElementById("lifeLog");
+    const state = window.state;
+    if (logEl && state && Array.isArray(state.log)) {
+      logEl.innerHTML = state.log
+        .map(
+          (entry) => `
+        <div class="log-entry ${entry.kind || ""}">
+          <div class="muted">Age ${entry.age} • Year ${entry.year}</div>
+          <div>${entry.text}</div>
+        </div>
+      `
+        )
+        .join("");
+    }
+    const happyEl = document.getElementById("stHappy");
+    if (happyEl && state && state.stats) {
+      happyEl.textContent = `${state.stats.happiness}/100`;
+    }
+  }
+
+  // Expose state smoothly when startLife / load runs by watching DOM changes
+  const observer = new MutationObserver(() => {
+    const lifeScreen = document.getElementById("lifeScreen");
+    if (lifeScreen && !lifeScreen.classList.contains("hidden")) {
+      // Grab latest state from localStorage if saved, or attach via window hook
+      if (!window.state) {
+        const saved = localStorage.getItem("lifeline_chronicles_save");
+        if (saved) {
+          try {
+            window.state = JSON.parse(saved);
+          } catch (_) {}
+        }
+      }
+      renderKids();
+    }
+  });
+
+  // Patch startLife & advanceYear if accessible via global or button clicks
+  const ageBtn = document.getElementById("btnAgeUp");
+  if (ageBtn) {
+    ageBtn.addEventListener("click", () => {
+      setTimeout(renderKids, 0);
+    });
+  }
+  const startBtn = document.getElementById("btnStartLife");
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      // Capture initial state from the log & title if not on window yet
+      if (!window.state) {
+        const title = document.getElementById("charTitle")?.textContent || "Character";
+        const yearMatch = document.getElementById("stAge")?.textContent?.match(/\((\d+)\)/);
+        const year = yearMatch ? parseInt(yearMatch[1], 10) : 2002;
+        window.state = {
+          name: title.split(" (")[0],
+          year,
+          age: 0,
+          alive: true,
+          stats: { health: 85, happiness: 78, wealth: 25, reputation: 50 },
+          girlfriends: [],
+          children: [],
+          log: []
+        };
+      }
+      setTimeout(renderKids, 0);
+    });
+  }
+
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+})();
